@@ -241,7 +241,6 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
 
         // no result
         if (!isset($json->results) || !count($json->results) || 'OK' !== $json->status) {
-            $this->lastStatus = $json->status;
             return new AddressCollection([]);
         }
 
@@ -464,6 +463,7 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
             throw InvalidServerResponse::create($url);
         }
 
+        $this->lastStatus = $json->status;
         if ('REQUEST_DENIED' === $json->status && 'The provided API key is invalid.' === $json->error_message) {
             throw new InvalidCredentials(sprintf('API key is invalid %s', $url));
         }
