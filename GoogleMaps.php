@@ -77,6 +77,11 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
     private $lastResponse;
 
     /**
+     * @var string|null
+     */
+    private $lastStatus;
+
+    /**
      * Google Maps for Business
      * https://developers.google.com/maps/documentation/business/.
      *
@@ -236,6 +241,7 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
 
         // no result
         if (!isset($json->results) || !count($json->results) || 'OK' !== $json->status) {
+            $this->lastStatus = $json->status;
             return new AddressCollection([]);
         }
 
@@ -306,6 +312,14 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
     public function getLastResponse()
     {
         return $this->lastResponse;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getLastStatus()
+    {
+        return $this->lastStatus;
     }
 
     /**
@@ -438,6 +452,7 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
     {
         // Throw exception if invalid clientID and/or privateKey used with GoogleMapsBusinessProvider
         if (false !== strpos($content, "Provided 'signature' is not valid for the provided client ID")) {
+            $this->lastStatus = 'INVALID_CLIENT_ID';
             throw new InvalidCredentials(sprintf('Invalid client ID / API Key %s', $url));
         }
 
@@ -445,6 +460,7 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
 
         // API error
         if (!isset($json)) {
+            $this->lastStatus = 'INVALID_SERVER_RESPONSE';
             throw InvalidServerResponse::create($url);
         }
 
