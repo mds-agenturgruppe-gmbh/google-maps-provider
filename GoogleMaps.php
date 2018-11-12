@@ -67,6 +67,16 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
     private $channel;
 
     /**
+     * @var string|null
+     */
+    private $lastUrl;
+
+    /**
+     * @var string|null
+     */
+    private $lastResponse;
+
+    /**
      * Google Maps for Business
      * https://developers.google.com/maps/documentation/business/.
      *
@@ -114,8 +124,36 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
         if (null !== $bounds = $query->getBounds()) {
             $url .= sprintf('&bounds=%s,%s|%s,%s', $bounds->getSouth(), $bounds->getWest(), $bounds->getNorth(), $bounds->getEast());
         }
+        $url .= $this->buildComponents($query->getData('components', []));
 
         return $this->fetchUrl($url, $query->getLocale(), $query->getLimit(), $query->getData('region', $this->region));
+    }
+
+    /**
+     * Build component string
+     *
+     * @param array $components
+     *
+     * @return string
+     * @throws \Exception
+     */
+    protected function buildComponents(array $components): string
+    {
+        if (empty($components)) {
+            return '';
+        }
+        $query = '&components=';
+        $available = ['route', 'locality', 'sublocality', 'administrative_area', 'postal_code', 'country'];
+        $available = array_flip($available);
+        foreach ($components as $name => $value) {
+            if (!isset($available[$name])) {
+                throw new \Exception('Unknown component: ' . $name);
+            }
+            $query .= $name . ':' . rawurlencode($value) . '|';
+        }
+        $query = substr($query, 0, -1);
+
+        return $query;
     }
 
     public function reverseQuery(ReverseQuery $query): Collection
@@ -191,7 +229,9 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
     private function fetchUrl(string $url, string $locale = null, int $limit, string $region = null): AddressCollection
     {
         $url = $this->buildQuery($url, $locale, $region);
+        $this->lastUrl = $url;
         $content = $this->getUrlContents($url);
+        $this->lastResponse = $content;
         $json = $this->validateResponse($url, $content);
 
         // no result
@@ -250,6 +290,22 @@ final class GoogleMaps extends AbstractHttpProvider implements Provider
         }
 
         return new AddressCollection($results);
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getLastUrl()
+    {
+        return $this->lastUrl;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getLastResponse()
+    {
+        return $this->lastResponse;
     }
 
     /**
